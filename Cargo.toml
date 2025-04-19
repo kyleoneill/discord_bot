@@ -1,0 +1,12 @@
+[package]
+name = "chairman_myers"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sqlx = { version = "0.7", features = [ "runtime-tokio-native-tls", "sqlite" ] }
+serenity = "0.12"
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1.0.196", features = ["derive"] }
