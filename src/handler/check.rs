@@ -32,7 +32,6 @@ pub async fn check_credit_for_user(ctx: Context, msg: Message) {
         .title(format!("{} Social Credit Score", target))
         .field("Positive: ", credit.positive_credit.to_string(), false)
         .field("Negative: ", credit.negative_credit.to_string(), false)
-        .field("Traded: ", credit.traded_credit.to_string(), false)
         .field("Sum: ", credit.sum_score().to_string(), false);
 
     let builder = CreateMessage::new().embed(embed);
