@@ -17,11 +17,16 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        // Do not process a message if it was sent by a bot
+        if msg.author.bot {
+            return
+        }
+
+        // Process a message as a command if it begins with COMMAND_DELIMITER
         if let Some(first_char) = msg.content.chars().next() {
             if first_char == COMMAND_DELIMITER {
                 let discord_user = msg.author.name.clone();
                 match msg.content.split_whitespace().next() {
-                    // TODO: Response should be a nice looking embed like the ;pokemon thing?
                     Some(segment) => match segment {
                         "!check" => check::check_credit_for_user(ctx, msg).await,
                         "!credit" => Logger::log("TODO: Credit"),
@@ -70,6 +75,13 @@ impl EventHandler for Handler {
 
         if let Ok(message) = add_reaction.message(ctx.http).await {
             let discord_username = message.author.name;
+
+            // If somebody is reacting to their own message, do not count the score
+            if let Some(react_user) = add_reaction.member {
+                if discord_username == react_user.user.name {
+                    return
+                }
+            }
 
             // Verify that the user exists and has a record for social credit
             match Database::create_user_if_not_exist(&db, discord_username.as_str()).await {

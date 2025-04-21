@@ -9,7 +9,7 @@ pub struct SocialCredit {
 }
 
 impl SocialCredit {
-    pub fn sum_score(&self) -> usize {
-        ((self.positive_credit + self.traded_credit) - self.negative_credit) as usize
+    pub fn sum_score(&self) -> i64 {
+        (self.positive_credit + self.traded_credit) - self.negative_credit
     }
 }
