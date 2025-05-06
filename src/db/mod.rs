@@ -1,4 +1,6 @@
-use crate::social_credit::SocialCredit;
+pub mod leaderboard;
+
+use crate::models::social_credit::SocialCredit;
 
 use serenity::prelude::TypeMapKey;
 use sqlx::{Error, SqlitePool};

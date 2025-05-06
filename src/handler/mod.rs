@@ -1,4 +1,5 @@
 mod check;
+mod leaderboard;
 
 use crate::db::Database;
 use crate::logger::Logger;
@@ -19,7 +20,7 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         // Do not process a message if it was sent by a bot
         if msg.author.bot {
-            return
+            return;
         }
 
         // Process a message as a command if it begins with COMMAND_DELIMITER
@@ -30,7 +31,7 @@ impl EventHandler for Handler {
                     Some(segment) => match segment {
                         "!check" => check::check_credit_for_user(ctx, msg).await,
                         "!credit" => Logger::log("TODO: Credit"),
-                        "!leaderboard" => Logger::log("TODO: Leaderboard"),
+                        "!leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
                         _ => Logger::log(format!(
                             "User {} tried to use command {}",
                             discord_user, segment
@@ -43,13 +44,9 @@ impl EventHandler for Handler {
             }
         }
         /*
-           - !check @person
-               - Checks their score (positive, negative, traded, sum total)
+        TODO:
            - !credit @person
                - Gives score to somebody, cannot put you in debt. Must have the given amount as minimum
-           - !leaderboard
-               - Show the current leaderboard
-           - Every friday, show leaderboard?
         */
     }
 
@@ -79,7 +76,7 @@ impl EventHandler for Handler {
             // If somebody is reacting to their own message, do not count the score
             if let Some(react_user) = add_reaction.member {
                 if discord_username == react_user.user.name {
-                    return
+                    return;
                 }
             }
 

@@ -1,6 +1,6 @@
 use crate::db::Database;
 use crate::logger::Logger;
-use crate::social_credit::SocialCredit;
+use crate::models::social_credit::SocialCredit;
 use serenity::all::{Context, Message};
 use serenity::builder::{CreateEmbed, CreateMessage};
 
@@ -37,6 +37,6 @@ pub async fn check_credit_for_user(ctx: Context, msg: Message) {
     let builder = CreateMessage::new().embed(embed);
     let msg = msg.channel_id.send_message(&ctx.http, builder).await;
     if let Err(why) = msg {
-        Logger::log(format!("Failed to send a message, got error: {:?}", why))
+        Logger::log(format!("Failed to send a message with error: {:?}", why))
     }
 }
