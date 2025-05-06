@@ -1,7 +1,7 @@
 pub mod db;
 pub mod handler;
 pub mod logger;
-pub mod social_credit;
+pub mod models;
 
 use db::Database;
 use handler::Handler;
