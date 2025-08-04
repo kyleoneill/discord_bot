@@ -1,4 +1,5 @@
 pub mod leaderboard;
+pub mod pokemon;
 
 use crate::models::social_credit::SocialCredit;
 
@@ -23,6 +24,7 @@ impl Database {
         pool: &SqlitePool,
         discord_username: &str,
     ) -> Result<(), String> {
+        // TODO: This should return a sqlx Error, why is this returning a string?????
         match Database::get_user_social_credit(pool, discord_username).await {
             Ok(_user_credit) => Ok(()),
             Err(e) => match e {

@@ -1,5 +1,6 @@
 mod check;
 mod leaderboard;
+mod pokemon;
 
 use crate::db::Database;
 use crate::logger::Logger;
@@ -28,10 +29,11 @@ impl EventHandler for Handler {
             if first_char == COMMAND_DELIMITER {
                 let discord_user = msg.author.name.clone();
                 match msg.content.split_whitespace().next() {
-                    Some(segment) => match segment {
-                        "!check" => check::check_credit_for_user(ctx, msg).await,
-                        "!credit" => Logger::log("TODO: Credit"),
-                        "!leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
+                    Some(segment) => match &segment[1..] {
+                        "check" => check::check_credit_for_user(ctx, msg).await,
+                        "credit" => Logger::log("TODO: Credit"),
+                        "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
+                        "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
                         _ => Logger::log(format!(
                             "User {} tried to use command {}",
                             discord_user, segment

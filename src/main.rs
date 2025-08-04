@@ -2,8 +2,11 @@ pub mod db;
 pub mod handler;
 pub mod logger;
 pub mod models;
+pub mod util;
 
 use db::Database;
+use models::pokemon::PokemonData;
+
 use handler::Handler;
 
 #[macro_use]
@@ -20,6 +23,9 @@ async fn main() {
         .await
         .expect("Failed to connect to databse");
     db::init_db(&pool).await;
+
+    // Load pokemon data
+    let pokemon_data = PokemonData::new();
 
     // Get a discord token
     let discord_token = dotenv!("DISCORD_TOKEN").to_owned();
@@ -38,6 +44,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<Database>(pool);
+        data.insert::<PokemonData>(pokemon_data);
     }
 
     // Listen to events on a single shard
