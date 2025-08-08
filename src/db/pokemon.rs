@@ -4,7 +4,9 @@ use crate::{
     logger::Logger,
     models::pokemon::{
         pokemon_command_record::PokemonCommandRecord,
-        pokemon_ownership_record::{PokemonOwnershipRecord, PokemonOwnershipRecordPK},
+        pokemon_ownership_record::{
+            PokemonClassification, PokemonOwnershipRecord, PokemonOwnershipRecordPK,
+        },
     },
 };
 
@@ -14,6 +16,7 @@ impl Database {
     pub async fn upsert_ownership_record(
         pool: &SqlitePool,
         ownership_record: &PokemonOwnershipRecordPK,
+        classification: PokemonClassification,
         current_time: i64,
         current_command_record: Option<PokemonCommandRecord>,
     ) -> Result<(), Error> {
@@ -32,22 +35,21 @@ impl Database {
                 // This user already has this pokemon, so we want to increment their count for it
                 let new_count = existing_record.number_owned + 1;
                 sqlx::query!(
-                    "UPDATE pokemon_ownership_record SET number_owned = ? WHERE username = ? AND pokemon_name = ? AND shiny = ? AND april_fools = ?",
+                    "UPDATE pokemon_ownership_record SET number_owned = ? WHERE username = ? AND pokemon_name = ? AND pokemon_type = ?",
                     new_count,
                     existing_record.username,
                     existing_record.pokemon_name,
-                    existing_record.shiny,
-                    existing_record.april_fools,
+                    existing_record.pokemon_type,
                 ).execute(&mut *tx).await?;
             }
             None => {
                 // This user does not have this pokemon yet, so we want to create a new record
                 sqlx::query!(
-                    "INSERT INTO pokemon_ownership_record (username, pokemon_name, number_owned, shiny, april_fools) VALUES (?, ?, 1, ?, ?)",
+                    "INSERT INTO pokemon_ownership_record (username, pokemon_name, number_owned, pokemon_type, classification) VALUES (?, ?, 1, ?, ?)",
                     ownership_record.username,
                     ownership_record.pokemon_name,
-                    ownership_record.shiny,
-                    ownership_record.april_fools,
+                    ownership_record.pokemon_type,
+                    classification,
                 ).execute(&mut *tx).await?;
             }
         }
@@ -81,11 +83,10 @@ impl Database {
     ) -> Result<Option<PokemonOwnershipRecord>, Error> {
         match sqlx::query_as!(
             PokemonOwnershipRecord,
-            "SELECT * FROM pokemon_ownership_record WHERE username = ? AND pokemon_name = ? AND shiny = ? AND april_fools = ?",
+            "SELECT * FROM pokemon_ownership_record WHERE username = ? AND pokemon_name = ? AND pokemon_type = ?",
             primary_key.username,
             primary_key.pokemon_name,
-            primary_key.shiny,
-            primary_key.april_fools
+            primary_key.pokemon_type,
         ).fetch_one(pool).await {
             Ok(record) => Ok(Some(record)),
             Err(e) => {
