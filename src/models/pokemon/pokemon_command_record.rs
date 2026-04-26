@@ -4,7 +4,7 @@ const SECS_BETWEEN_USES: i64 = 3600 * 3; // 3 hours
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PokemonCommandRecord {
-    pub username: String,
+    pub discord_id: String,
     pub last_used_at: i64,
     pub times_used: i64,
 }

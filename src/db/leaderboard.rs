@@ -14,7 +14,10 @@ impl Database {
                 sqlx::query_as!(
                     LeaderboardEntry,
                     r#"
-                    SELECT username, positive_credit as vote_count FROM social_credit
+                    SELECT users.username, social_credit.positive_credit as vote_count
+                    FROM social_credit
+                    INNER JOIN users
+                    ON social_credit.discord_id = users.discord_id
                     ORDER BY positive_credit DESC
                     LIMIT 5
                     "#
@@ -26,7 +29,10 @@ impl Database {
                 sqlx::query_as!(
                     LeaderboardEntry,
                     r#"
-                    SELECT username, negative_credit as vote_count FROM social_credit
+                    SELECT users.username, social_credit.negative_credit as vote_count
+                    FROM social_credit
+                    INNER JOIN users
+                    ON social_credit.discord_id = users.discord_id
                     ORDER BY negative_credit DESC
                     LIMIT 5
                     "#
@@ -38,8 +44,10 @@ impl Database {
                 sqlx::query_as!(
                     LeaderboardEntry,
                     r#"
-                        SELECT username, (positive_credit + negative_credit) AS vote_count
+                        SELECT users.username, (social_credit.positive_credit + social_credit.negative_credit) AS vote_count
                         FROM social_credit
+                        INNER JOIN users
+                        ON social_credit.discord_id = users.discord_id
                         ORDER BY vote_count DESC
                         LIMIT 5
                     "#
@@ -51,8 +59,10 @@ impl Database {
                 sqlx::query_as!(
                     LeaderboardEntry,
                     r#"
-                        SELECT username, (positive_credit - negative_credit) AS vote_count
+                        SELECT users.username, (social_credit.positive_credit - social_credit.negative_credit) AS vote_count
                         FROM social_credit
+                        INNER JOIN users
+                        ON social_credit.discord_id = users.discord_id
                         ORDER BY vote_count DESC
                         LIMIT 5
                     "#

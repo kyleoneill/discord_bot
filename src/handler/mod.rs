@@ -25,24 +25,23 @@ impl EventHandler for Handler {
         }
 
         // Process a message as a command if it begins with COMMAND_DELIMITER
-        if let Some(first_char) = msg.content.chars().next() {
-            if first_char == COMMAND_DELIMITER {
-                let discord_user = msg.author.name.clone();
-                match msg.content.split_whitespace().next() {
-                    Some(segment) => match &segment[1..] {
-                        "check" => check::check_credit_for_user(ctx, msg).await,
-                        "credit" => Logger::log("TODO: Credit"),
-                        "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
-                        "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
-                        _ => Logger::log(format!(
-                            "User {} tried to use command {}",
-                            discord_user, segment
-                        )),
-                    },
-                    None => {
-                        Logger::log("Did not get message content when trying to match a command")
-                    }
-                }
+        if let Some(first_char) = msg.content.chars().next()
+            && first_char == COMMAND_DELIMITER
+        {
+            // This must be a string as sqlite does not support u64
+            let discord_user_id = msg.author.id.get().to_string();
+            match msg.content.split_whitespace().next() {
+                Some(segment) => match &segment[1..] {
+                    "check" => check::check_credit_for_user(ctx, msg).await,
+                    "credit" => Logger::log("TODO: Credit"),
+                    "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
+                    "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
+                    _ => Logger::log(format!(
+                        "User {} tried to use command {}",
+                        discord_user_id, segment
+                    )),
+                },
+                None => Logger::log("Did not get message content when trying to match a command"),
             }
         }
         /*
@@ -73,17 +72,25 @@ impl EventHandler for Handler {
         };
 
         if let Ok(message) = add_reaction.message(ctx.http).await {
-            let discord_username = message.author.name;
+            // This must be a string as sqlite does not support u64
+            let discord_user_id = message.author.id.get().to_string();
+            let discord_username = message.author.name.clone();
 
             // If somebody is reacting to their own message, do not count the score
-            if let Some(react_user) = add_reaction.member {
-                if discord_username == react_user.user.name {
-                    return;
-                }
+            if let Some(react_user) = add_reaction.member
+                && discord_user_id == react_user.user.id.get().to_string()
+            {
+                return;
             }
 
             // Verify that the user exists and has a record for social credit
-            match Database::create_user_if_not_exist(&db, discord_username.as_str()).await {
+            match Database::create_user_if_not_exist(
+                &db,
+                discord_user_id.as_str(),
+                discord_username.as_str(),
+            )
+            .await
+            {
                 Ok(_) => (),
                 Err(e) => {
                     Logger::log(e.as_str());
@@ -94,30 +101,25 @@ impl EventHandler for Handler {
             // Add or deduct credit based on which react we got
             let res = match react_type {
                 ReactType::AddScore => {
-                    match Database::add_credit_score(&db, discord_username.as_str()).await {
+                    match Database::add_credit_score(&db, discord_user_id.as_str()).await {
                         Ok(()) => {
-                            format!("Added social credit for user {}", discord_username.as_str())
+                            format!("Added social credit for user {}", discord_user_id)
                         }
-                        Err(_) => format!(
-                            "Failed to add social credit for user {}",
-                            discord_username.as_str()
-                        ),
+                        Err(_) => {
+                            format!("Failed to add social credit for user {}", discord_user_id)
+                        }
                     }
                 }
                 ReactType::SubtractScore => {
-                    match Database::subtract_credit_score(&db, discord_username.as_str()).await {
-                        Ok(()) => format!(
-                            "Subtracted social credit for user {}",
-                            discord_username.as_str()
-                        ),
+                    match Database::subtract_credit_score(&db, discord_user_id.as_str()).await {
+                        Ok(()) => format!("Subtracted social credit for user {}", discord_user_id),
                         Err(_) => format!(
                             "Failed to subtract social credit for user {}",
-                            discord_username.as_str()
+                            discord_user_id
                         ),
                     }
                 }
             };
-
             Logger::log(res);
         }
     }

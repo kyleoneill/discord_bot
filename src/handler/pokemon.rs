@@ -1,7 +1,7 @@
 use crate::db::Database;
 use crate::logger::Logger;
 use crate::models::pokemon::{
-    PokemonData, pokemon_link_to_name, pokemon_ownership_record::PokemonOwnershipRecordPK,
+    PokemonData, pokemon_info::Pokemon, pokemon_ownership_record::PokemonOwnershipRecordPK,
     roll_for_type,
 };
 use crate::util::{current_time_unix_epoch, seconds_to_human_readable};
@@ -16,6 +16,7 @@ pub async fn handle_pokemon_command(ctx: Context, msg: Message) {
         .expect("The message must have begun with a 'pokemon' command");
     match split.next() {
         Some(sub_command) => {
+            #[allow(clippy::match_single_binding)]
             match sub_command {
                 // TODO: Future subcommands
 
@@ -36,14 +37,16 @@ pub async fn handle_pokemon_command(ctx: Context, msg: Message) {
 }
 
 pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
+    // TODO: Need to return a message to the user in the case that this fails
+
     let pokemon_type = roll_for_type();
 
-    let random_pokemon = {
+    let random_pokemon: Pokemon = {
         let data_read = ctx.data.read().await;
         let pokemon_data = data_read
             .get::<PokemonData>()
             .expect("State data must have PokemonData");
-        pokemon_data.get_random_pokemon(&pokemon_type)
+        pokemon_data.get_random_pokemon()
     };
 
     let data_read = ctx.data.read().await;
@@ -52,18 +55,21 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
         .expect("Failed to get database")
         .clone();
 
+    let discord_id = msg.author.id.get().to_string();
+    let discord_username = msg.author.name.to_owned();
+
     let ownership_record = PokemonOwnershipRecordPK {
-        username: msg.author.name.clone(),
-        pokemon_name: random_pokemon.name.clone(),
+        discord_id: discord_id.clone(),
+        pokemon_slug: random_pokemon.slug.clone(),
         pokemon_type: pokemon_type.clone(),
     };
 
     // Check if the user has a command record and if they used the command too recently
     // TODO: Put this in its own function in the db file, will have to refactor to return a specific error to construct a message here if the user
-    //       has used the command too recently (separate out our error from a mongo error)
+    //       has used the command too recently (separate out our error from a sqlite error)
     let current_time = current_time_unix_epoch();
     let current_command_record =
-        match Database::get_command_record_for_user(&db, msg.author.name.as_str()).await {
+        match Database::get_command_record_for_user(&db, discord_id.as_str()).await {
             Ok(maybe_record) => {
                 match maybe_record {
                     Some(command_record) => {
@@ -101,9 +107,9 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
     if let Err(e) = Database::upsert_ownership_record(
         &db,
         &ownership_record,
-        random_pokemon.classification.clone(),
         current_time,
         current_command_record,
+        discord_username,
     )
     .await
     {
@@ -114,14 +120,13 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
         return;
     };
 
-    let display_url = pokemon_type.get_link_for_type(random_pokemon.name.as_str());
-    let pokemon_name = pokemon_link_to_name(random_pokemon.name.as_str());
+    let display_url = pokemon_type.get_link_for_type(&random_pokemon);
     let display_text = format!(
         "<@{}>, {}",
         msg.author.id.clone(),
-        pokemon_type.get_display_text_for_type(pokemon_name)
+        pokemon_type.get_display_text_for_type(random_pokemon.name.to_owned())
     );
-    let embed_color = random_pokemon.classification.get_color_for_embed();
+    let embed_color = random_pokemon.rarity.get_color_for_embed();
 
     let embed = CreateEmbed::new()
         .description(display_text)

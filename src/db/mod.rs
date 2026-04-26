@@ -22,19 +22,25 @@ impl TypeMapKey for Database {
 impl Database {
     pub async fn create_user_if_not_exist(
         pool: &SqlitePool,
+        discord_id: &str,
         discord_username: &str,
     ) -> Result<(), String> {
         // TODO: This should return a sqlx Error, why is this returning a string?????
-        match Database::get_user_social_credit(pool, discord_username).await {
+        match Database::get_user_social_credit(pool, discord_id).await {
             Ok(_user_credit) => Ok(()),
             Err(e) => match e {
-                Error::RowNotFound => match Database::add_user(pool, discord_username).await {
-                    Ok(()) => Ok(()),
-                    Err(_) => Err(
-                        "Failed to add user to db when handling social credit retrieval"
-                            .to_string(),
-                    ),
-                },
+                Error::RowNotFound => {
+                    match Database::add_user(pool, discord_id, discord_username).await {
+                        Ok(()) => Ok(()),
+                        Err(e) => {
+                            println!("{:?}", e);
+                            Err(
+                                "Failed to add user to db when handling social credit retrieval"
+                                    .to_string(),
+                            )
+                        }
+                    }
+                }
                 _ => Err("Unhandled error when getting a user social credit".to_string()),
             },
         }
@@ -42,12 +48,18 @@ impl Database {
 
     pub async fn get_user_social_credit(
         pool: &SqlitePool,
-        discord_username: &str,
+        discord_id: &str,
     ) -> Result<Option<SocialCredit>, Error> {
         match sqlx::query_as!(
             SocialCredit,
-            "SELECT * FROM social_credit WHERE username = ?",
-            discord_username
+            r#"
+            SELECT users.username, social_credit.positive_credit, social_credit.negative_credit, social_credit.traded_credit
+            FROM social_credit
+            INNER JOIN users
+            ON users.discord_id = social_credit.discord_id
+            WHERE social_credit.discord_id = ?
+            "#,
+            discord_id
         )
         .fetch_one(pool)
         .await
@@ -57,26 +69,31 @@ impl Database {
         }
     }
 
-    pub async fn add_user(pool: &SqlitePool, discord_username: &str) -> Result<(), Error> {
+    pub async fn add_user(
+        pool: &SqlitePool,
+        discord_id: &str,
+        discord_username: &str,
+    ) -> Result<(), Error> {
         let mut tx = pool.begin().await?;
 
-        sqlx::query(
+        sqlx::query!(
             r#"
-            INSERT OR IGNORE INTO users (discord_username)
-            VALUES (?1);
+            INSERT OR IGNORE INTO users (discord_id, username)
+            VALUES (?, ?);
             "#,
+            discord_id,
+            discord_username,
         )
-        .bind(discord_username)
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query(
+        sqlx::query!(
             r#"
-            INSERT OR IGNORE INTO social_credit (username)
-            VALUES (?1);
+            INSERT OR IGNORE INTO social_credit (discord_id)
+            VALUES (?);
             "#,
+            discord_id,
         )
-        .bind(discord_username)
         .execute(&mut *tx)
         .await?;
 
@@ -85,14 +102,14 @@ impl Database {
         Ok(())
     }
 
-    pub async fn add_credit_score(pool: &SqlitePool, discord_username: &str) -> Result<(), Error> {
+    pub async fn add_credit_score(pool: &SqlitePool, discord_id: &str) -> Result<(), Error> {
         sqlx::query!(
             r#"
             UPDATE social_credit
             SET positive_credit = positive_credit + 1
-            WHERE username = ?1
+            WHERE discord_id = ?1
             "#,
-            discord_username
+            discord_id
         )
         .execute(pool)
         .await?;
@@ -100,17 +117,14 @@ impl Database {
         Ok(())
     }
 
-    pub async fn subtract_credit_score(
-        pool: &SqlitePool,
-        discord_username: &str,
-    ) -> Result<(), Error> {
+    pub async fn subtract_credit_score(pool: &SqlitePool, discord_id: &str) -> Result<(), Error> {
         sqlx::query!(
             r#"
             UPDATE social_credit
             SET negative_credit = negative_credit + 1
-            WHERE username = ?1
+            WHERE discord_id = ?1
             "#,
-            discord_username
+            discord_id
         )
         .execute(pool)
         .await?;
