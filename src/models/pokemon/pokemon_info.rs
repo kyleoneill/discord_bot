@@ -24,10 +24,7 @@ impl From<String> for PokemonType {
 
 impl PokemonType {
     pub fn get_link_for_type(&self, pokemon: &Pokemon) -> String {
-        let pokemon_link_name: String = {
-            let lowercase_name = pokemon.name.to_lowercase();
-            lowercase_name.replace(' ', "")
-        };
+        let pokemon_link_name = pokemon.generate_showdown_link_name();
         match self {
             Self::Normal => format!("https://play.pokemonshowdown.com/sprites/ani/{}.gif", pokemon_link_name),
             Self::AprilFools => format!("https://play.pokemonshowdown.com/sprites/afd/{}.png", pokemon_link_name),
@@ -173,4 +170,18 @@ pub struct Pokemon {
     pub previous_evolution: Option<String>,
     #[serde(default)]
     pub types: Vec<String>, // TODO: This should be an enum
+}
+
+impl Pokemon {
+    pub fn generate_showdown_link_name(&self) -> String {
+        if self.base_species.is_empty() {
+            self.slug.clone()
+        } else {
+            let base_species_key = self.base_species.replace("-", "").replace(" ", "").to_lowercase();
+
+            let base_key_len = base_species_key.len();
+            let slug_len = self.slug.len();
+            format!("{}-{}", base_species_key, &self.slug[base_key_len..slug_len])
+        }
+    }
 }
