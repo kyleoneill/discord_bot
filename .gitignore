@@ -1,6 +1,7 @@
 *.env
 
 data/pokedex.json
+data/pokedex.ts
 
 *.db
 *.db-shm
