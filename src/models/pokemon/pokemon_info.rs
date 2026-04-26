@@ -99,10 +99,7 @@ impl FromStr for PokemonRarity {
             "normal" => Ok(Self::Normal),
             "legendary" => Ok(Self::Legendary),
             "mythic" => Ok(Self::Mythical),
-            _ => Err(format!(
-                "Got an invalid value while parsing a PokemonRarity: {}",
-                s
-            )),
+            _ => Err(format!("Got an invalid value while parsing a PokemonRarity: {}", s)),
         }
     }
 }

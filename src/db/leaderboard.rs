@@ -5,10 +5,7 @@ use crate::models::leaderboard::{LeaderboardEntry, LeaderboardType};
 use sqlx::{Error, SqlitePool};
 
 impl Database {
-    pub async fn get_leaderboard(
-        pool: &SqlitePool,
-        leaderboard_type: &LeaderboardType,
-    ) -> Result<Vec<LeaderboardEntry>, Error> {
+    pub async fn get_leaderboard(pool: &SqlitePool, leaderboard_type: &LeaderboardType) -> Result<Vec<LeaderboardEntry>, Error> {
         match leaderboard_type {
             LeaderboardType::Positive => {
                 sqlx::query_as!(

@@ -15,22 +15,17 @@ impl Database {
         pool: &SqlitePool,
         ownership_record: &PokemonOwnershipRecordPK,
         current_time: i64,
-        current_command_record: Option<PokemonCommandRecord>,
         discord_username: String,
     ) -> Result<(), Error> {
         // TODO: This function shouldn't take a discord_username, need to figuren out a less hacky way
         // to resolve creating a user if it doesn't exist (like, doing it earlier in the handle flow)
 
+        let discord_id = ownership_record.discord_id.clone();
+
         let mut tx = pool.begin().await?;
 
         // Check if the current user exists in the db, create a record for them if not
-        if let Err(e) = Database::create_user_if_not_exist(
-            pool,
-            ownership_record.discord_id.as_str(),
-            discord_username.as_str(),
-        )
-        .await
-        {
+        if let Err(e) = Database::create_user_if_not_exist(pool, discord_id.as_str(), discord_username.as_str()).await {
             Logger::log(format!("Failed to get or create a user with err: {}", e));
         }
 
@@ -45,7 +40,9 @@ impl Database {
                     existing_record.discord_id,
                     existing_record.pokemon_slug,
                     existing_record.pokemon_type,
-                ).execute(&mut *tx).await?;
+                )
+                .execute(&mut *tx)
+                .await?;
             }
             None => {
                 // This user does not have this pokemon yet, so we want to create a new record
@@ -54,29 +51,25 @@ impl Database {
                     ownership_record.discord_id,
                     ownership_record.pokemon_slug,
                     ownership_record.pokemon_type,
-                ).execute(&mut *tx).await?;
+                )
+                .execute(&mut *tx)
+                .await?;
             }
         }
 
         // Upsert the command record for this user
-        match current_command_record {
-            Some(record) => {
-                let new_times_used = record.times_used + 1;
-                sqlx::query!(
-                    "UPDATE pokemon_command_record SET last_used_at = ?, last_used_at = ? WHERE discord_id = ?",
-                    new_times_used,
-                    current_time,
-                    ownership_record.discord_id,
-                ).execute(&mut *tx).await?;
-            }
-            None => {
-                sqlx::query!(
-                    "INSERT INTO pokemon_command_record (discord_id, last_used_at, times_used) VALUES (?, ?, 1)",
-                    ownership_record.discord_id,
-                    current_time,
-                ).execute(&mut *tx).await?;
-            }
-        }
+        sqlx::query!(
+            r#"
+            UPDATE pokemon_command_record
+            SET last_used_at = ?, times_used = times_used + 1
+            WHERE discord_id = ?
+            "#,
+            current_time,
+            discord_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
         tx.commit().await?;
         Ok(())
     }
@@ -107,10 +100,7 @@ impl Database {
         }
     }
 
-    pub async fn get_command_record_for_user(
-        pool: &SqlitePool,
-        discord_id: &str,
-    ) -> Result<Option<PokemonCommandRecord>, Error> {
+    pub async fn get_command_record_for_user(pool: &SqlitePool, discord_id: &str) -> Result<Option<PokemonCommandRecord>, Error> {
         match sqlx::query_as!(
             PokemonCommandRecord,
             "SELECT * FROM pokemon_command_record WHERE discord_id = ?",

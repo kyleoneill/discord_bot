@@ -7,10 +7,7 @@ use serenity::prelude::TypeMapKey;
 use sqlx::{Error, SqlitePool};
 
 pub async fn init_db(pool: &SqlitePool) {
-    sqlx::migrate!()
-        .run(pool)
-        .await
-        .expect("Failed to run migrations");
+    sqlx::migrate!().run(pool).await.expect("Failed to run migrations");
 }
 
 pub struct Database;
@@ -20,36 +17,24 @@ impl TypeMapKey for Database {
 }
 
 impl Database {
-    pub async fn create_user_if_not_exist(
-        pool: &SqlitePool,
-        discord_id: &str,
-        discord_username: &str,
-    ) -> Result<(), String> {
+    pub async fn create_user_if_not_exist(pool: &SqlitePool, discord_id: &str, discord_username: &str) -> Result<(), String> {
         // TODO: This should return a sqlx Error, why is this returning a string?????
         match Database::get_user_social_credit(pool, discord_id).await {
             Ok(_user_credit) => Ok(()),
             Err(e) => match e {
-                Error::RowNotFound => {
-                    match Database::add_user(pool, discord_id, discord_username).await {
-                        Ok(()) => Ok(()),
-                        Err(e) => {
-                            println!("{:?}", e);
-                            Err(
-                                "Failed to add user to db when handling social credit retrieval"
-                                    .to_string(),
-                            )
-                        }
+                Error::RowNotFound => match Database::add_user(pool, discord_id, discord_username).await {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err("Failed to add user to db when handling social credit retrieval".to_string())
                     }
-                }
+                },
                 _ => Err("Unhandled error when getting a user social credit".to_string()),
             },
         }
     }
 
-    pub async fn get_user_social_credit(
-        pool: &SqlitePool,
-        discord_id: &str,
-    ) -> Result<Option<SocialCredit>, Error> {
+    pub async fn get_user_social_credit(pool: &SqlitePool, discord_id: &str) -> Result<Option<SocialCredit>, Error> {
         match sqlx::query_as!(
             SocialCredit,
             r#"
@@ -69,11 +54,7 @@ impl Database {
         }
     }
 
-    pub async fn add_user(
-        pool: &SqlitePool,
-        discord_id: &str,
-        discord_username: &str,
-    ) -> Result<(), Error> {
+    pub async fn add_user(pool: &SqlitePool, discord_id: &str, discord_username: &str) -> Result<(), Error> {
         let mut tx = pool.begin().await?;
 
         sqlx::query!(
@@ -93,6 +74,16 @@ impl Database {
             VALUES (?);
             "#,
             discord_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT OR IGNORE INTO pokemon_command_record (discord_id)
+            VALUES (?);
+            "#,
+            discord_id
         )
         .execute(&mut *tx)
         .await?;

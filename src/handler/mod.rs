@@ -36,10 +36,7 @@ impl EventHandler for Handler {
                     "credit" => Logger::log("TODO: Credit"),
                     "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
                     "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
-                    _ => Logger::log(format!(
-                        "User {} tried to use command {}",
-                        discord_user_id, segment
-                    )),
+                    _ => Logger::log(format!("User {} tried to use command {}", discord_user_id, segment)),
                 },
                 None => Logger::log("Did not get message content when trying to match a command"),
             }
@@ -53,16 +50,12 @@ impl EventHandler for Handler {
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         let data_read = ctx.data.read().await;
-        let db = data_read
-            .get::<Database>()
-            .expect("Failed to get database")
-            .clone();
+        let db = data_read.get::<Database>().expect("Failed to get database").clone();
 
         // Check what kind of reaction was added, if it wasn't one we track then exit early
         let react_type: ReactType = match add_reaction.emoji {
             ReactionType::Custom {
-                name: Some(ref emoji_name),
-                ..
+                name: Some(ref emoji_name), ..
             } => match emoji_name.as_str() {
                 "positivefriend" => ReactType::AddScore,
                 "negativefriend" => ReactType::SubtractScore,
@@ -84,13 +77,7 @@ impl EventHandler for Handler {
             }
 
             // Verify that the user exists and has a record for social credit
-            match Database::create_user_if_not_exist(
-                &db,
-                discord_user_id.as_str(),
-                discord_username.as_str(),
-            )
-            .await
-            {
+            match Database::create_user_if_not_exist(&db, discord_user_id.as_str(), discord_username.as_str()).await {
                 Ok(_) => (),
                 Err(e) => {
                     Logger::log(e.as_str());
@@ -100,25 +87,18 @@ impl EventHandler for Handler {
 
             // Add or deduct credit based on which react we got
             let res = match react_type {
-                ReactType::AddScore => {
-                    match Database::add_credit_score(&db, discord_user_id.as_str()).await {
-                        Ok(()) => {
-                            format!("Added social credit for user {}", discord_user_id)
-                        }
-                        Err(_) => {
-                            format!("Failed to add social credit for user {}", discord_user_id)
-                        }
+                ReactType::AddScore => match Database::add_credit_score(&db, discord_user_id.as_str()).await {
+                    Ok(()) => {
+                        format!("Added social credit for user {}", discord_user_id)
                     }
-                }
-                ReactType::SubtractScore => {
-                    match Database::subtract_credit_score(&db, discord_user_id.as_str()).await {
-                        Ok(()) => format!("Subtracted social credit for user {}", discord_user_id),
-                        Err(_) => format!(
-                            "Failed to subtract social credit for user {}",
-                            discord_user_id
-                        ),
+                    Err(_) => {
+                        format!("Failed to add social credit for user {}", discord_user_id)
                     }
-                }
+                },
+                ReactType::SubtractScore => match Database::subtract_credit_score(&db, discord_user_id.as_str()).await {
+                    Ok(()) => format!("Subtracted social credit for user {}", discord_user_id),
+                    Err(_) => format!("Failed to subtract social credit for user {}", discord_user_id),
+                },
             };
             Logger::log(res);
         }

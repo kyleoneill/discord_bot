@@ -22,10 +22,7 @@ pub fn seconds_to_human_readable(seconds: i64) -> String {
     };
     let seconds = remainder_minutes_as_seconds % 60;
     if hours > 0 {
-        return format!(
-            "{} hours, {} minutes, and {} seconds",
-            hours, minutes, seconds
-        );
+        return format!("{} hours, {} minutes, and {} seconds", hours, minutes, seconds);
     }
     if minutes > 0 {
         return format!("{} minutes and {} seconds", minutes, seconds);

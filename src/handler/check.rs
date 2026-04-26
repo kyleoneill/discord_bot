@@ -14,14 +14,9 @@ pub async fn check_credit_for_user(ctx: Context, msg: Message) {
     let target_user_name: String = user.name;
 
     let data_read = ctx.data.read().await;
-    let db = data_read
-        .get::<Database>()
-        .expect("Failed to get database")
-        .clone();
+    let db = data_read.get::<Database>().expect("Failed to get database").clone();
 
-    let credit = if let Ok(Some(credit)) =
-        Database::get_user_social_credit(&db, target_user_id.as_str()).await
-    {
+    let credit = if let Ok(Some(credit)) = Database::get_user_social_credit(&db, target_user_id.as_str()).await {
         credit
     } else {
         SocialCredit {
