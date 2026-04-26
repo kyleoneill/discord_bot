@@ -3,7 +3,7 @@ use crate::logger::Logger;
 use crate::models::pokemon::{PokemonData, pokemon_info::Pokemon, pokemon_ownership_record::PokemonOwnershipRecordPK, roll_for_type};
 use crate::util::{current_time_unix_epoch, seconds_to_human_readable};
 
-use serenity::all::{Context, Message};
+use serenity::all::{Context, CreateEmbedFooter, Message, Timestamp};
 use serenity::builder::{CreateEmbed, CreateMessage};
 
 pub async fn handle_pokemon_command(ctx: Context, msg: Message) {
@@ -85,6 +85,7 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
         return;
     };
 
+    // Generate a discord message to return to the user
     let display_url = pokemon_type.get_link_for_type(&random_pokemon);
     let display_text = format!(
         "<@{}>, {}",
@@ -93,7 +94,30 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
     );
     let embed_color = random_pokemon.rarity.get_color_for_embed();
 
-    let embed = CreateEmbed::new().description(display_text).color(embed_color).image(display_url);
+    let footer = CreateEmbedFooter::new("Get squirted on").icon_url("https://play.pokemonshowdown.com/sprites/itemicons/squirtbottle.png");
+
+    // TODO: have footer image dependent on social credit score
+    // High credit = vanity ball (premier, moon, etc)
+    // Low credit = Generic
+    // Negative credit = Something else?
+    // TODO: Add a field to the pokemon ownership record of what pokeball was used to catch it, matching the pokeball icon used here
+    // TODO: Add an inventory so people can use a specific pokeball on a catch? The ball can maybe influence what pokemon is caught?
+    // TODO: Add support for forms (unown, alcremie, etc) - will need to make sure that primary key storage and url generation work for this
+
+    let pokemon_type: String = random_pokemon.types.join(" / ");
+    let height = format!("{}m", random_pokemon.height);
+    let weight = format!("{}kg", random_pokemon.weight);
+
+    let embed = CreateEmbed::new()
+        .description(display_text)
+        .color(embed_color)
+        .image(display_url)
+        .footer(footer)
+        .timestamp(Timestamp::now())
+        .field("Type", pokemon_type, true)
+        .field("Height", height, true)
+        .field("Weight", weight, true)
+        .field("Base Stats", random_pokemon.base_stats.to_string(), false);
 
     let builder = CreateMessage::new().embed(embed);
     if let Err(e) = msg.channel_id.send_message(&ctx.http, builder).await {

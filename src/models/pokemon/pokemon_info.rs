@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 use serenity::model::Color;
@@ -24,16 +24,15 @@ impl From<String> for PokemonType {
 
 impl PokemonType {
     pub fn get_link_for_type(&self, pokemon: &Pokemon) -> String {
-        let base = match self {
-            Self::Normal => "https://play.pokemonshowdown.com/sprites/ani",
-            Self::AprilFools => "https://play.pokemonshowdown.com/sprites/afd",
-            Self::Shiny => "https://play.pokemonshowdown.com/sprites/ani-shiny",
-        };
         let pokemon_link_name: String = {
             let lowercase_name = pokemon.name.to_lowercase();
             lowercase_name.replace(' ', "")
         };
-        format!("{}/{}.gif", base, pokemon_link_name)
+        match self {
+            Self::Normal => format!("https://play.pokemonshowdown.com/sprites/ani/{}.gif", pokemon_link_name),
+            Self::AprilFools => format!("https://play.pokemonshowdown.com/sprites/afd/{}.png", pokemon_link_name),
+            Self::Shiny => format!("https://play.pokemonshowdown.com/sprites/ani-shiny/{}.gif", pokemon_link_name),
+        }
     }
 
     pub fn get_display_text_for_type(&self, pokemon_name: String) -> String {
@@ -55,6 +54,16 @@ pub struct PokemonStats {
     spa: u32,
     spd: u32,
     spe: i32,
+}
+
+impl Display for PokemonStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} HP\n{} Attack\n{} Defense\n{} Special Attack\n{} Special Defense\n{} Speed",
+            self.hp, self.atk, self.def, self.spa, self.spd, self.spe
+        )
+    }
 }
 
 // POKEMON RARITY
@@ -120,7 +129,7 @@ pub struct Pokemon {
     pub gender: Option<String>,
     #[serde(default, rename(deserialize = "heightm"))]
     pub height: f64,
-    #[serde(default, rename(deserialize = "weightm"))]
+    #[serde(default, rename(deserialize = "weightkg"))]
     pub weight: f64,
     #[serde(default)]
     pub color: String,
