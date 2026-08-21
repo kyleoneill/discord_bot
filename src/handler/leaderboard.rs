@@ -22,10 +22,7 @@ pub async fn get_leaderboard(ctx: Context, msg: Message) {
     };
 
     let data_read = ctx.data.read().await;
-    let db = data_read
-        .get::<Database>()
-        .expect("Failed to get database")
-        .clone();
+    let db = data_read.get::<Database>().expect("Failed to get database").clone();
 
     match Database::get_leaderboard(&db, &leaderboard_type).await {
         Ok(res) => {
@@ -33,8 +30,7 @@ pub async fn get_leaderboard(ctx: Context, msg: Message) {
                 msg.channel_id
                     .send_message(
                         &ctx.http,
-                        CreateMessage::new()
-                            .content("There are no entries yet to rank on a leaderboard."),
+                        CreateMessage::new().content("There are no entries yet to rank on a leaderboard."),
                     )
                     .await
             } else {

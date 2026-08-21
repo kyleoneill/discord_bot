@@ -2,8 +2,11 @@ pub mod db;
 pub mod handler;
 pub mod logger;
 pub mod models;
+pub mod util;
 
 use db::Database;
+use models::pokemon::PokemonData;
+
 use handler::Handler;
 
 #[macro_use]
@@ -16,18 +19,17 @@ use sqlx::sqlite::SqlitePool;
 async fn main() {
     // Initialize db
     let database_url = dotenv!("DATABASE_URL").to_owned();
-    let pool = SqlitePool::connect(database_url.as_str())
-        .await
-        .expect("Failed to connect to databse");
+    let pool = SqlitePool::connect(database_url.as_str()).await.expect("Failed to connect to databse");
     db::init_db(&pool).await;
+
+    // Load pokemon data
+    let pokemon_data = PokemonData::new();
 
     // Get a discord token
     let discord_token = dotenv!("DISCORD_TOKEN").to_owned();
 
     // Set gateway intents, which decide what events the bot will be notified about
-    let intents = GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::GUILD_MESSAGE_REACTIONS
-        | GatewayIntents::MESSAGE_CONTENT;
+    let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::GUILD_MESSAGE_REACTIONS | GatewayIntents::MESSAGE_CONTENT;
 
     // Create discord client
     let mut client = Client::builder(discord_token.as_str(), intents)
@@ -38,6 +40,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<Database>(pool);
+        data.insert::<PokemonData>(pokemon_data);
     }
 
     // Listen to events on a single shard
