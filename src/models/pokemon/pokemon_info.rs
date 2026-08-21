@@ -23,6 +23,9 @@ impl From<String> for PokemonType {
 }
 
 impl PokemonType {
+    /*
+        link generation logic in pokemon showdown code is in `getSpriteData` in `src/battle-dex.ts`, as of when this was written
+    */
     pub fn get_link_for_type(&self, pokemon: &Pokemon) -> String {
         let pokemon_link_name = pokemon.generate_showdown_link_name();
         match self {

@@ -3,8 +3,33 @@ use crate::logger::Logger;
 use crate::models::pokemon::{PokemonData, pokemon_info::Pokemon, pokemon_ownership_record::PokemonOwnershipRecordPK, roll_for_type};
 use crate::util::{current_time_unix_epoch, seconds_to_human_readable};
 
+use rand::prelude::IndexedRandom;
 use serenity::all::{Context, CreateEmbedFooter, Message, Timestamp};
 use serenity::builder::{CreateEmbed, CreateMessage};
+
+const FOOTERS: [(&str, &str); 9] = [
+    ("Get squirted on", "https://play.pokemonshowdown.com/sprites/itemicons/squirtbottle.png"),
+    ("You've got mail", "https://play.pokemonshowdown.com/sprites/itemicons/air-mail.png"),
+    (
+        "Bought with mom's credit card",
+        "https://play.pokemonshowdown.com/sprites/itemicons/blue-card.png",
+    ),
+    ("CHAOS CONTROL", "https://play.pokemonshowdown.com/sprites/itemicons/bug-gem.png"),
+    ("Pills here", "https://play.pokemonshowdown.com/sprites/itemicons/calcium.png"),
+    (
+        "Lord Helix was here",
+        "https://play.pokemonshowdown.com/sprites/itemicons/helix-fossil.png",
+    ),
+    ("Listen to my mixtape", "https://play.pokemonshowdown.com/sprites/itemicons/hm-dragon.png"),
+    (
+        "There's a bottom healing on everyone!",
+        "https://play.pokemonshowdown.com/sprites/itemicons/hyper-potion.png",
+    ),
+    (
+        "You fell for my master bait",
+        "https://play.pokemonshowdown.com/sprites/itemicons/master-ball.png",
+    ),
+];
 
 pub async fn handle_pokemon_command(ctx: Context, msg: Message) {
     let mut split = msg.content.split_whitespace();
@@ -94,7 +119,15 @@ pub async fn catch_random_pokemon(ctx: Context, msg: Message) {
     );
     let embed_color = random_pokemon.rarity.get_color_for_embed();
 
-    let footer = CreateEmbedFooter::new("Get squirted on").icon_url("https://play.pokemonshowdown.com/sprites/itemicons/squirtbottle.png");
+    let footer = {
+        // This is scoped into a block so rng is dropped before reaching an await, which causes a compiler error
+        // as it does not impl Send
+
+        // Choose a footer text and image
+        let mut rng = rand::rng();
+        let (footer_text, footer_image) = FOOTERS.choose(&mut rng).expect("const slice will always contain data");
+        CreateEmbedFooter::new(*footer_text).icon_url(*footer_image)
+    };
 
     // TODO: have footer image dependent on social credit score
     // High credit = vanity ball (premier, moon, etc)

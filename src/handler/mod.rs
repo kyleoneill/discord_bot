@@ -31,13 +31,17 @@ impl EventHandler for Handler {
             // This must be a string as sqlite does not support u64
             let discord_user_id = msg.author.id.get().to_string();
             match msg.content.split_whitespace().next() {
-                Some(segment) => match &segment[1..] {
-                    "check" => check::check_credit_for_user(ctx, msg).await,
-                    "credit" => Logger::log("TODO: Credit"),
-                    "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
-                    "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
-                    _ => Logger::log(format!("User {} tried to use command {}", discord_user_id, segment)),
-                },
+                Some(segment) => {
+                    // Strip out the command prefix and make the command case-insensitive
+                    let command = segment[1..].to_lowercase();
+                    match command.as_str() {
+                        "check" => check::check_credit_for_user(ctx, msg).await,
+                        "credit" => Logger::log("TODO: Credit"),
+                        "leaderboard" => leaderboard::get_leaderboard(ctx, msg).await,
+                        "pokemon" => pokemon::handle_pokemon_command(ctx, msg).await,
+                        _ => Logger::log(format!("User {} tried to use command {}", discord_user_id, segment)),
+                    }
+                }
                 None => Logger::log("Did not get message content when trying to match a command"),
             }
         }
