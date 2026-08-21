@@ -54,9 +54,40 @@ impl PokemonData {
 
     pub fn get_random_pokemon(&self) -> Pokemon {
         let mut rng = rand::rng();
-        let index = rng.random_range(0..self.data.len());
-        let (_pokemon_name, pokemon) = self.data.get_index(index).expect("Failed to get a random pokemon");
-        pokemon.clone()
+
+        const ATTEMPTS: usize = 5;
+        // Try to get a pokemon a few times
+        for _ in 0..ATTEMPTS {
+            let index = rng.random_range(0..self.data.len());
+            let mut pokemon = self.data.get_index(index).expect("Failed to get a random pokemon").1.clone();
+
+            // Apply cosmetic forms. This must be done before the pokedex number
+            // check because cosmetic forms don't have their pokedex number in
+            // their entry.
+            if pokemon.is_cosmetic_form {
+                let cosmetic_form = pokemon;
+                pokemon = self
+                    .data
+                    .get(&cosmetic_form.base_species.to_lowercase())
+                    .expect("Failed to get base form of cosmetic form")
+                    .clone();
+                pokemon.is_cosmetic_form = true;
+                pokemon.name = cosmetic_form.name;
+                pokemon.base_species = cosmetic_form.base_species;
+                pokemon.form = cosmetic_form.form;
+                pokemon.color = cosmetic_form.color;
+            }
+
+            if pokemon.num > 0 {
+                return pokemon;
+            }
+
+            // We rolled missingno or an unofficial Create-A-Pokemon project
+            // Pokemon, try again
+        }
+
+        // Failed to get a pokemon, return missingno as an easter egg
+        self.data.get("missingno").expect("no missingno in pokedex").clone()
     }
 }
 

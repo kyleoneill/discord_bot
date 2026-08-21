@@ -111,7 +111,7 @@ impl FromStr for PokemonRarity {
 }
 
 // POKEMON
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 pub struct Pokemon {
     pub name: String,
     #[serde(default)]
@@ -174,14 +174,143 @@ pub struct Pokemon {
 
 impl Pokemon {
     pub fn generate_showdown_link_name(&self) -> String {
-        if self.base_species.is_empty() {
-            self.slug.clone()
-        } else {
-            let base_species_key = self.base_species.replace("-", "").replace(" ", "").to_lowercase();
-
-            let base_key_len = base_species_key.len();
-            let slug_len = self.slug.len();
-            format!("{}-{}", base_species_key, &self.slug[base_key_len..slug_len])
+        fn to_id(s: &str) -> String {
+            s.chars().filter(char::is_ascii_alphanumeric).map(|c| c.to_ascii_lowercase()).collect()
         }
+
+        let base_species = if !self.base_species.is_empty() { &self.base_species } else { &self.name };
+        let mut sprite_id = to_id(base_species);
+        if !self.base_species.is_empty() {
+            sprite_id = format!("{sprite_id}-{}", to_id(&self.form));
+        };
+
+        match sprite_id.as_str() {
+            "greninja-bond" => "greninja".to_string(),
+            "rockruff-dusk" => "rockruff".to_string(),
+            _ => sprite_id,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_link_name_simple() {
+        let bulbasaur = Pokemon {
+            // base_species
+            name: "Bulbasaur".to_string(),
+            // form
+            ..Default::default()
+        };
+        assert_eq!(bulbasaur.generate_showdown_link_name(), "bulbasaur");
+    }
+
+    #[test]
+    fn test_link_name_non_ascii() {
+        let flabebe = Pokemon {
+            // base_species
+            name: "Flabe\u{0301}be\u{0301}".to_string(),
+            // form
+            ..Default::default()
+        };
+        assert_eq!(flabebe.generate_showdown_link_name(), "flabebe");
+    }
+
+    #[test]
+    fn test_link_name_cosmetic_forme() {
+        let vivillon_icy_snow = Pokemon {
+            base_species: "Vivillon".to_string(),
+            name: "Vivillon-Icy Snow".to_string(),
+            form: "Icy Snow".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(vivillon_icy_snow.generate_showdown_link_name(), "vivillon-icysnow");
+    }
+
+    #[test]
+    fn test_link_name_forme_non_ascii() {
+        let dudunsparce_three_segment = Pokemon {
+            base_species: "Dudunsparce".to_string(),
+            name: "Dudunsparce-Three-Segment".to_string(),
+            form: "Three-Segment".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(dudunsparce_three_segment.generate_showdown_link_name(), "dudunsparce-threesegment");
+    }
+
+    #[test]
+    fn test_link_name_non_ascii_forme() {
+        let farfetchd_galar = Pokemon {
+            base_species: "Farfetch\u{2019}d".to_string(),
+            name: "Farfetch\u{2019}d-Galar".to_string(),
+            form: "Galar".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(farfetchd_galar.generate_showdown_link_name(), "farfetchd-galar");
+    }
+
+    #[test]
+    fn test_link_name_mega() {
+        let glalie_mega = Pokemon {
+            base_species: "Glalie".to_string(),
+            name: "Glalie-Mega".to_string(),
+            form: "Mega".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(glalie_mega.generate_showdown_link_name(), "glalie-mega");
+    }
+
+    #[test]
+    fn test_link_name_gmax() {
+        let centiskorch_gmax = Pokemon {
+            base_species: "Centiskorch".to_string(),
+            name: "Centiskorch-Gmax".to_string(),
+            form: "Gmax".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(centiskorch_gmax.generate_showdown_link_name(), "centiskorch-gmax");
+    }
+
+    #[test]
+    fn test_link_name_totem() {
+        let gumshoos_totem = Pokemon {
+            base_species: "Gumshoos".to_string(),
+            name: "Gumshoos-Totem".to_string(),
+            form: "Totem".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(gumshoos_totem.generate_showdown_link_name(), "gumshoos-totem");
+    }
+
+    #[test]
+    fn test_link_name_primal() {
+        let kyogre_primal = Pokemon {
+            base_species: "Kyogre".to_string(),
+            name: "Kyogre-Primal".to_string(),
+            form: "Primal".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(kyogre_primal.generate_showdown_link_name(), "kyogre-primal");
+    }
+
+    #[test]
+    fn test_link_name_explicit_exceptions() {
+        let greninja_bond = Pokemon {
+            base_species: "Greninja".to_string(),
+            name: "Greninja-Bond".to_string(),
+            form: "Bond".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(greninja_bond.generate_showdown_link_name(), "greninja");
+
+        let rockruff_dusk = Pokemon {
+            base_species: "RockRuff".to_string(),
+            name: "Rockruff-Dusk".to_string(),
+            form: "Dusk".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(rockruff_dusk.generate_showdown_link_name(), "rockruff");
     }
 }
