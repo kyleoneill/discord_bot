@@ -83,29 +83,24 @@ def main():
 
     with open(relative_path("pokedex.ts"), "r") as pokedex:
         for i, line in enumerate(pokedex):
-            line = remove_comments(line)
-
-            leading_spaces = len(line) - len(line.lstrip())
-            indent = " " * (leading_spaces * 2)
-
-            line = line.strip()
+            line = remove_comments(line).strip()
 
             if line == "":
                 # Skip empty lines and comment-only lines
                 pass
             elif i == 0:
                 # The first line should be replaced with '{'
-                output_data.append("{\n")
+                output_data.append("{")
             elif line.startswith("}") or line.startswith("]"):
                 # If current line is closing an object, remove trailing comma from the previous line
 
                 previous_line = output_data[-1]
                 # Need to remove trailing whitespace before I can strip the trailing comma
-                previous_line = previous_line.rstrip().rstrip(",") + "\n"
+                previous_line = previous_line.rstrip(",")
                 output_data[-1] = previous_line
 
                 # Do this here for nicer formatting
-                output_data.append(f'{indent}{line}\n')
+                output_data.append(line)
 
             else:
                 # If the current line begins with a key, need to add double quotes to the key
@@ -125,19 +120,26 @@ def main():
                         value = handle_tags(value)
 
                     # Re-write the line with double quotes around the key
-                    new_line = f'{indent}"{key}":{value}\n'
-
-                    output_data.append(new_line)
+                    output_data.append(f'"{key}":{value}')
                 else:
                     # I think this can no longer be reached?
                     output_data.append(line)
 
         # Remove trailing semicolon at the end
-        output_data[-1] = output_data[-1].rstrip().rstrip(";") + "\n"
+        output_data[-1] = output_data[-1].rstrip(";")
 
-    with open(relative_path("pokedex.json"), "w") as new_file:
-        for line in output_data:
-            new_file.write(line)
+    pokedex_json_string = "".join(output_data)
+    pokedex_json = json.loads(pokedex_json_string)
+
+    with open(relative_path("pokedex-mini.js"), "r") as pokedex_mini:
+        for i, line in enumerate(pokedex_mini):
+            if line.startswith("\t"):
+                pieces = line.lstrip().split(":", 1)
+                if pieces[0] in pokedex_json and "front" not in pieces[1]:
+                    pokedex_json[pieces[0]]["has_ani_sprite"] = False
+
+    with open(relative_path("pokedex.json"), "w") as file:
+        json.dump(pokedex_json, file, indent=2)
 
 
 if __name__ == "__main__":

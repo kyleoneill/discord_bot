@@ -28,11 +28,28 @@ impl PokemonType {
     */
     pub fn get_link_for_type(&self, pokemon: &Pokemon) -> String {
         let pokemon_link_name = pokemon.generate_showdown_link_name();
-        match self {
-            Self::Normal => format!("https://play.pokemonshowdown.com/sprites/ani/{}.gif", pokemon_link_name),
-            Self::AprilFools => format!("https://play.pokemonshowdown.com/sprites/afd/{}.png", pokemon_link_name),
-            Self::Shiny => format!("https://play.pokemonshowdown.com/sprites/ani-shiny/{}.gif", pokemon_link_name),
-        }
+        let path = match self {
+            Self::Normal => {
+                // Some pokemon are missing animated sprites. Fall back to the
+                // pokemon home static sprites for those cases.
+                if pokemon.has_ani_sprite {
+                    format!("ani/{pokemon_link_name}.gif")
+                } else {
+                    format!("home-centered/{pokemon_link_name}.png")
+                }
+            }
+            Self::AprilFools => format!("afd/{pokemon_link_name}.png"),
+            Self::Shiny => {
+                // Some pokemon are missing animated sprites. Fall back to the
+                // pokemon home static sprites for those cases.
+                if pokemon.has_ani_sprite {
+                    format!("ani-shiny/{pokemon_link_name}.gif")
+                } else {
+                    format!("home-centered-shiny/{pokemon_link_name}.png")
+                }
+            }
+        };
+        format!("https://play.pokemonshowdown.com/sprites/{path}")
     }
 
     pub fn get_display_text_for_type(&self, pokemon_name: String) -> String {
@@ -173,6 +190,12 @@ pub struct Pokemon {
     pub previous_evolution: Option<String>,
     #[serde(default)]
     pub types: Vec<String>, // TODO: This should be an enum
+    #[serde(default = "has_ani_sprite_default")]
+    pub has_ani_sprite: bool,
+}
+
+fn has_ani_sprite_default() -> bool {
+    true
 }
 
 impl Pokemon {
@@ -315,5 +338,51 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(rockruff_dusk.generate_showdown_link_name(), "rockruff");
+    }
+
+    #[test]
+    fn test_ani_sprite() {
+        let venusaur_mega = Pokemon {
+            base_species: "Venusaur".to_string(),
+            name: "Venusaur-Mega".to_string(),
+            form: "Mega".to_string(),
+            has_ani_sprite: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            PokemonType::Normal.get_link_for_type(&venusaur_mega),
+            "https://play.pokemonshowdown.com/sprites/ani/venusaur-mega.gif",
+        );
+        assert_eq!(
+            PokemonType::Shiny.get_link_for_type(&venusaur_mega),
+            "https://play.pokemonshowdown.com/sprites/ani-shiny/venusaur-mega.gif",
+        );
+        assert_eq!(
+            PokemonType::AprilFools.get_link_for_type(&venusaur_mega),
+            "https://play.pokemonshowdown.com/sprites/afd/venusaur-mega.png",
+        );
+    }
+
+    #[test]
+    fn test_missing_ani_sprite() {
+        let venusaur_gmax = Pokemon {
+            base_species: "Venusaur".to_string(),
+            name: "Venusaur-Gmax".to_string(),
+            form: "Gmax".to_string(),
+            has_ani_sprite: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            PokemonType::Normal.get_link_for_type(&venusaur_gmax),
+            "https://play.pokemonshowdown.com/sprites/home-centered/venusaur-gmax.png",
+        );
+        assert_eq!(
+            PokemonType::Shiny.get_link_for_type(&venusaur_gmax),
+            "https://play.pokemonshowdown.com/sprites/home-centered-shiny/venusaur-gmax.png",
+        );
+        assert_eq!(
+            PokemonType::AprilFools.get_link_for_type(&venusaur_gmax),
+            "https://play.pokemonshowdown.com/sprites/afd/venusaur-gmax.png",
+        );
     }
 }
