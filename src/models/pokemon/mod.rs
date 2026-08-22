@@ -33,7 +33,7 @@ impl PokemonData {
     pub fn new() -> Self {
         let mut data: IndexMap<String, Pokemon> = IndexMap::new();
 
-        let contents = fs::read_to_string("data/pokedex_gold.json").expect("Failed to read pokemon_data.json file");
+        let contents = fs::read_to_string("data/pokedex.json").expect("Failed to read pokedex.json file");
         let v: Value = serde_json::from_str(&contents).expect("Failed to parse pokemon JSON");
 
         match v {
@@ -93,4 +93,15 @@ impl PokemonData {
 
 impl TypeMapKey for PokemonData {
     type Value = PokemonData;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pokemon_data_schema() {
+        // Check to make sure that the pokemon data matches the expected schema
+        let _ = PokemonData::new();
+    }
 }
