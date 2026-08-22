@@ -1,4 +1,6 @@
 import json
+import os
+import urllib.request
 from typing import List
 
 SKIPPED_FIELDS = [
@@ -17,6 +19,27 @@ SKIPPED_FIELDS = [
 ]
 
 
+DATA_FILES = {
+    "pokedex.ts": "https://raw.githubusercontent.com/smogon/pokemon-showdown/refs/heads/master/data/pokedex.ts",
+    "pokedex-mini.js": "https://play.pokemonshowdown.com/data/pokedex-mini.js",
+}
+
+
+def relative_path(name):
+    basepath = os.path.dirname(__file__)
+    return os.path.abspath(os.path.join(basepath, name))
+
+
+def cache_files():
+    for name in DATA_FILES:
+        path = relative_path(name)
+        if not os.path.isfile(path):
+            req = urllib.request.Request(DATA_FILES[name], headers={"User-Agent": "discord_bot"})
+            with urllib.request.urlopen(req) as response:
+                with open(path, "wb") as file:
+                    file.write(response.read())
+
+
 def remove_comments(line: str) -> str:
     split = line.split("//")
     return split[0]
@@ -27,7 +50,7 @@ def handle_base_stats(base_stats: str) -> str:
     split = base_stats.split()
     stats = f'"hp": {split[2]} "atk": {split[4]} "def": {split[6]} "spa": {split[8]} "spd": {split[10]} "spe": {split[12]}'
 
-    built = "{ " + stats + "},\n"
+    built = " { " + stats + "},"
     return built
 
 
@@ -50,31 +73,39 @@ def handle_tags(line: str) -> str:
         res = "legendary"
     elif tag == "mythical":
         res = "mythical"
-    return f' "{res}",\n'
+    return f' "{res}",'
 
 
 def main():
-    output_data: List[str] = []
-    current_line = 0
+    cache_files()
 
-    with open("pokedex.ts", "r") as pokedex:
+    output_data: List[str] = []
+
+    with open(relative_path("pokedex.ts"), "r") as pokedex:
         for i, line in enumerate(pokedex):
             line = remove_comments(line)
 
             leading_spaces = len(line) - len(line.lstrip())
-            leading_spaces *= 2
+            indent = " " * (leading_spaces * 2)
 
-            # If current line is closing an object, remove trailing comma from the previous line
-            if line.strip().startswith("}") and current_line > 0:
-                previous_line = output_data[current_line - 1]
-                previous_line = previous_line.rstrip().rstrip(
-                    ","
-                )  # Need to remove trailing whitespace before I can strip the trailing comma
-                output_data[current_line - 1] = f"{previous_line}\n"
+            line = line.strip()
+
+            if line == "":
+                # Skip empty lines and comment-only lines
+                pass
+            elif i == 0:
+                # The first line should be replaced with '{'
+                output_data.append("{\n")
+            elif line.startswith("}") or line.startswith("]"):
+                # If current line is closing an object, remove trailing comma from the previous line
+
+                previous_line = output_data[-1]
+                # Need to remove trailing whitespace before I can strip the trailing comma
+                previous_line = previous_line.rstrip().rstrip(",") + "\n"
+                output_data[-1] = previous_line
 
                 # Do this here for nicer formatting
-                current_line += 1
-                output_data.append((" " * leading_spaces) + "},\n")
+                output_data.append(f'{indent}{line}\n')
 
             else:
                 # If the current line begins with a key, need to add double quotes to the key
@@ -94,17 +125,17 @@ def main():
                         value = handle_tags(value)
 
                     # Re-write the line with double quotes around the key
-                    new_line = f'"{key}":{value}'
-                    new_line = (" " * leading_spaces) + new_line
+                    new_line = f'{indent}"{key}":{value}\n'
 
-                    current_line += 1
                     output_data.append(new_line)
                 else:
                     # I think this can no longer be reached?
-                    current_line += 1
                     output_data.append(line)
 
-    with open("pokedex.json", "w") as new_file:
+        # Remove trailing semicolon at the end
+        output_data[-1] = output_data[-1].rstrip().rstrip(";") + "\n"
+
+    with open(relative_path("pokedex.json"), "w") as new_file:
         for line in output_data:
             new_file.write(line)
 
